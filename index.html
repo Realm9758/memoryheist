@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Heist</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #e0e0e0;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #game-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 600px;
+      padding: 8px 0;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #555;
+      text-transform: uppercase;
+    }
+
+    .hud-value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #c8a84b;
+      letter-spacing: 1px;
+    }
+
+    #phase-badge {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 6px 18px;
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #e0e0e0;
+      transition: all 0.3s ease;
+    }
+
+    #phase-badge.memorize {
+      border-color: #c8a84b;
+      color: #c8a84b;
+      box-shadow: 0 0 12px rgba(200, 168, 75, 0.25);
+    }
+
+    #phase-badge.escape {
+      border-color: #4be8c8;
+      color: #4be8c8;
+      box-shadow: 0 0 12px rgba(75, 232, 200, 0.25);
+    }
+
+    #canvas-container {
+      position: relative;
+      border: 1px solid #1e1e2e;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 80px rgba(200, 168, 75, 0.04);
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.92);
+      z-index: 100;
+      gap: 20px;
+      backdrop-filter: blur(4px);
+      transition: opacity 0.4s ease;
+    }
+
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .overlay-title {
+      font-size: 42px;
+      font-weight: bold;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+
+    .overlay-title.gold { color: #c8a84b; text-shadow: 0 0 30px rgba(200,168,75,0.5); }
+    .overlay-title.red  { color: #e84b4b; text-shadow: 0 0 30px rgba(232,75,75,0.5); }
+    .overlay-title.cyan { color: #4be8c8; text-shadow: 0 0 30px rgba(75,232,200,0.5); }
+
+    .overlay-sub {
+      font-size: 13px;
+      color: #666;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .overlay-stats {
+      font-size: 14px;
+      color: #888;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    .overlay-stats span {
+      color: #c8a84b;
+    }
+
+    #btn-start, #btn-retry, #btn-next {
+      margin-top: 8px;
+      padding: 14px 40px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    #btn-start, #btn-next {
+      background: #c8a84b;
+      color: #0a0a0f;
+      font-weight: bold;
+    }
+
+    #btn-retry {
+      background: #e84b4b;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    #btn-start:hover, #btn-next:hover { background: #d4b96a; transform: scale(1.04); }
+    #btn-retry:hover { background: #f06060; transform: scale(1.04); }
+
+    .key-hint {
+      font-size: 11px;
+      color: #333;
+      letter-spacing: 2px;
+    }
+
+    #countdown-flash {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 80px;
+      font-weight: bold;
+      color: #c8a84b;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 50;
+      text-shadow: 0 0 40px rgba(200,168,75,0.8);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">Level</span>
+        <span class="hud-value" id="hud-level">1</span>
+      </div>
+      <div id="phase-badge">Standby</div>
+      <div class="hud-item">
+        <span class="hud-label">Timer</span>
+        <span class="hud-value" id="hud-timer">--</span>
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <canvas id="game-canvas"></canvas>
+      <div id="countdown-flash"></div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="overlay-title gold">MEMORY HEIST</div>
+    <div class="overlay-sub">Memorize the vault. Then break in.</div>
+    <div class="overlay-stats">
+      Arrow keys or WASD to move<br/>
+      Avoid traps. Find the exit.
+    </div>
+    <button id="btn-start">Begin Heist</button>
+    <div class="key-hint">PRESS ENTER</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
