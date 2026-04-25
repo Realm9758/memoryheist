@@ -97,6 +97,13 @@ export class Renderer {
     const px             = playerPos.x;
     const py             = playerPos.y;
 
+    // Reveal-delay progress: 0→1 over 220ms after each player step.
+    // Tiles in view are extra-dim immediately after moving, then fade to their
+    // distance-based dim — so the player can't simply react to what appears.
+    const revealProgress = visionLimited
+      ? clamp((timestamp - this.playerMoveTime) / 220, 0, 1)
+      : 1;
+
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const tile = grid[y][x];
@@ -128,8 +135,12 @@ export class Renderer {
                 this.revealAnimations.delete(revKey);
               }
             } else {
-              // In vision range but not yet stepped — preview at reduced brightness
-              this.drawTilePreview(ctx, tile, ptx, pty, ts);
+              // Tiles outside the normal radius shown during peek get capped to
+              // one notch beyond the radius edge so they stay clearly dim.
+              const effectiveDist = (isPeeking && dist > config.visionRadius)
+                ? config.visionRadius + 1
+                : dist;
+              this.drawTilePreview(ctx, tile, ptx, pty, ts, effectiveDist, revealProgress);
             }
           }
 
@@ -147,7 +158,8 @@ export class Renderer {
               this.revealAnimations.delete(revKey);
             }
           } else if (isPeeking) {
-            this.drawTilePreview(ctx, tile, ptx, pty, ts);
+            // Peek on unlimited-vision levels: flat moderate dim, no delay
+            this.drawTilePreview(ctx, tile, ptx, pty, ts, 2, 1);
           } else {
             this.drawFog(ctx, ptx, pty, ts);
           }
@@ -191,13 +203,36 @@ export class Renderer {
     }
   }
 
-  // In-range but not yet stepped — shows tile type dimmed so player can "feel around"
-  private drawTilePreview(ctx: CanvasRenderingContext2D, tile: Tile, px: number, py: number, ts: number) {
-    // fake_trap looks like real trap until stepped on (same as memorize phase)
+  // In-range but not yet stepped — shows tile type dimmed so player must rely on memory.
+  // dist=0 is the player's own tile (never called), dist=1 is adjacent, etc.
+  // revealProgress: 0→1 over 220ms after the last player step (reveal delay).
+  private drawTilePreview(
+    ctx: CanvasRenderingContext2D, tile: Tile,
+    px: number, py: number, ts: number,
+    dist = 1, revealProgress = 1,
+  ) {
+    // fake_trap looks like real trap until stepped on
     const displayTile: Tile = tile.type === 'fake_trap' ? { ...tile, type: 'trap' as TileType } : tile;
     this.drawTileRevealed(ctx, displayTile, px, py, ts);
-    // Dim overlay — visually distinct from stepped tiles
-    ctx.fillStyle = 'rgba(5, 5, 15, 0.5)';
+
+    // Distance-based base dim — adjacent tiles are barely readable; outer tiles
+    // are very dark so the player can't rely on sight alone.
+    const baseDim = dist <= 1 ? 0.58 : dist === 2 ? 0.74 : 0.86;
+
+    // Reveal delay — tiles surge darker right after the player moves, then
+    // settle to their base dim over ~220ms. Prevents instant reaction reads.
+    const revealExtra = (1 - revealProgress) * 0.24;
+
+    // Subtle flicker for tiles at distance 2+ — a visual "I'm not sure" cue.
+    // Per-tile hash keeps each tile out of phase.
+    let flicker = 0;
+    if (dist >= 2) {
+      const hash = ((px * 127 + py * 311) & 0xff) / 255 * Math.PI * 2;
+      flicker = Math.sin(this.currentTimestamp * 0.0038 + hash) * 0.055;
+    }
+
+    const dimAlpha = Math.min(0.96, baseDim + revealExtra + flicker);
+    ctx.fillStyle = `rgba(5, 5, 15, ${dimAlpha})`;
     this.roundRect(ctx, px + 1, py + 1, ts, ts, 3);
     ctx.fill();
   }
