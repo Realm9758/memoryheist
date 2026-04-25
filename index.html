@@ -25,7 +25,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
     }
 
     #hud {
@@ -96,11 +96,59 @@
       box-shadow: 0 0 10px rgba(75,232,200,0.2);
     }
 
+    /* ── Peek HUD ────────────────────────────────── */
+    #peek-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      height: 22px;
+      opacity: 0.55;
+      transition: opacity 0.2s ease;
+    }
+    #peek-row.visible {
+      display: flex;
+    }
+    #peek-row.visible.is-active {
+      opacity: 1;
+    }
+
+    .peek-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #555;
+      text-transform: uppercase;
+    }
+
+    #peek-dots {
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: #c8a84b;
+      transition: color 0.15s ease, text-shadow 0.15s ease;
+    }
+    #peek-dots.is-peeking {
+      color: #ffe066;
+      text-shadow: 0 0 8px rgba(255,224,102,0.7);
+    }
+
+    .peek-key {
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: #333;
+      border: 1px solid #2a2a3a;
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
+
     /* ── Canvas ──────────────────────────────────── */
     #canvas-container {
       position: relative;
       border: 1px solid #1e1e2e;
       box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 80px rgba(200,168,75,0.03);
+      transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    #canvas-container.peeking {
+      border-color: rgba(200,168,75,0.55);
+      box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 22px rgba(200,168,75,0.28), 0 0 60px rgba(200,168,75,0.12);
     }
     canvas { display: block; }
 
@@ -119,7 +167,7 @@
       text-shadow: 0 0 40px rgba(200,168,75,0.8);
     }
 
-    /* ── Overlay ─────────────────────────────────── */
+    /* ── Win/Lose Overlay ────────────────────────── */
     #overlay {
       position: fixed;
       inset: 0;
@@ -186,6 +234,78 @@
       letter-spacing: 2px;
     }
 
+    /* ── Tutorial overlay ────────────────────────── */
+    #tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5,5,12,0.88);
+      z-index: 200;
+      backdrop-filter: blur(6px);
+      transition: opacity 0.3s ease;
+      cursor: pointer;
+    }
+    #tutorial-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tut-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      max-width: 360px;
+      padding: 38px 44px;
+      background: rgba(18,18,30,0.95);
+      border: 1px solid #2a2a42;
+      border-radius: 8px;
+      box-shadow: 0 0 50px rgba(0,0,0,0.7), 0 0 20px rgba(200,168,75,0.06);
+      text-align: center;
+    }
+
+    .tut-badge {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #c8a84b;
+      background: rgba(200,168,75,0.1);
+      border: 1px solid rgba(200,168,75,0.25);
+      border-radius: 3px;
+      padding: 3px 10px;
+    }
+
+    #tut-title {
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #e8e8e8;
+    }
+
+    #tut-desc {
+      font-size: 13px;
+      color: #888;
+      letter-spacing: 0.5px;
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+
+    @keyframes tut-hint-pulse {
+      0%, 100% { opacity: 0.4; }
+      50%       { opacity: 1; }
+    }
+    .tut-hint {
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #555;
+      margin-top: 8px;
+      animation: tut-hint-pulse 1.5s ease-in-out infinite;
+    }
+
     /* ── Full-screen flash effects ──────────────── */
     #death-flash, #win-flash {
       position: fixed;
@@ -203,6 +323,16 @@
   <!-- Full-screen flash overlays -->
   <div id="death-flash"></div>
   <div id="win-flash"></div>
+
+  <!-- Tutorial mechanic intro overlay (z-index 200, above everything) -->
+  <div id="tutorial-overlay" class="hidden">
+    <div class="tut-card">
+      <div class="tut-badge">New Mechanic</div>
+      <div id="tut-title"></div>
+      <div id="tut-desc"></div>
+      <div class="tut-hint">Press any key to continue</div>
+    </div>
+  </div>
 
   <div id="game-wrapper">
     <div id="hud">
@@ -222,6 +352,13 @@
         <span class="hud-label">Timer</span>
         <span class="hud-value" id="hud-timer">--</span>
       </div>
+    </div>
+
+    <!-- Peek HUD row (hidden until level 7+) -->
+    <div id="peek-row">
+      <span class="peek-label">Peek</span>
+      <span id="peek-dots"></span>
+      <span class="peek-key">SPACE</span>
     </div>
 
     <div id="canvas-container">

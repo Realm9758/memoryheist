@@ -3,7 +3,8 @@ export type TileType = 'empty' | 'wall' | 'trap' | 'exit' | 'start' | 'decoy' | 
 export interface Tile {
   type: TileType;
   revealed: boolean;
-  flickering?: boolean; // trap flickers during memorize phase (always real)
+  flickering?: boolean; // real trap that flickers during memorize
+  moving?: boolean;     // trap that moves one step each time the player moves (level 11+)
 }
 
 export interface Position {
@@ -13,6 +14,7 @@ export interface Position {
 
 export type GamePhase =
   | 'title'
+  | 'tutorial'   // paused intro screen shown before memorize starts
   | 'memorize'
   | 'countdown'
   | 'escape'
@@ -22,14 +24,19 @@ export type GamePhase =
 export interface LevelConfig {
   gridSize: number;
   memorizeTime: number;
-  trapFadeStart: number;    // ms elapsed into memorize phase when fade begins
-  trapFadeDuration: number; // ms over which traps fade from visible to invisible
+  trapFadeStart: number;
+  trapFadeDuration: number;
   trapCount: number;
   wallCount: number;
   decoyCount: number;
-  fakeTrapCount: number;    // look like traps, safe to step on
-  flickerChance: number;    // 0-1 chance a real trap flickers during memorize
-  escapeTimeLimit: number;  // ms countdown (0 = unlimited)
+  fakeTrapCount: number;
+  flickerChance: number;
+  escapeTimeLimit: number;
+  // ── New mechanics ──────────────────────────────────
+  visionRadius: number;    // tiles visible around player during escape (999 = unlimited)
+  peekCount: number;       // full-map reveals available per level (Space key)
+  peekDuration: number;    // ms each peek lasts
+  movingTrapCount: number; // traps that shuffle one step on each player move
 }
 
 export interface GameState {
@@ -39,10 +46,13 @@ export interface GameState {
   playerPos: Position;
   exitPos: Position;
   config: LevelConfig;
-  memorizeTimer: number;       // ms remaining in memorize phase
-  escapeTimeRemaining: number; // ms remaining in escape countdown
+  memorizeTimer: number;
+  escapeTimeRemaining: number;
   escapeStartTime: number;
   wrongMoves: number;
   score: number;
   perfectRun: boolean;
+  // ── New mechanics ──────────────────────────────────
+  peeksRemaining: number;
+  peekEndTime: number; // performance.now() timestamp when current peek expires (0 = off)
 }
