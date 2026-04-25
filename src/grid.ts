@@ -25,7 +25,7 @@ function bfs(grid: Tile[][], start: Position, end: Position): boolean {
       if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
       if (visited[ny][nx]) continue;
       const t = grid[ny][nx].type;
-      if (t === 'wall') continue;
+      if (t === 'wall' || t === 'trap') continue;
       visited[ny][nx] = true;
       queue.push({ x: nx, y: ny });
     }
@@ -110,11 +110,10 @@ export function generateGrid(config: LevelConfig): { grid: Tile[][], start: Posi
       grid[remaining[ri].y][remaining[ri].x].type = 'decoy';
     }
 
-    // Final solvability check (traps block movement)
+    // Final solvability check: a trap-free path must exist (traps block BFS, decoys are walkable)
     const solveGrid = grid.map(row => row.map(t => ({ ...t })));
     for (let y = 0; y < gridSize; y++) {
       for (let x = 0; x < gridSize; x++) {
-        if (solveGrid[y][x].type === 'trap') solveGrid[y][x].type = 'empty';
         if (solveGrid[y][x].type === 'decoy') solveGrid[y][x].type = 'empty';
       }
     }
