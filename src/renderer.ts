@@ -146,6 +146,8 @@ export class Renderer {
               this.drawTileRevealed(ctx, tile, ptx, pty, ts);
               this.revealAnimations.delete(revKey);
             }
+          } else if (isPeeking) {
+            this.drawTilePreview(ctx, tile, ptx, pty, ts);
           } else {
             this.drawFog(ctx, ptx, pty, ts);
           }
