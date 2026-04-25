@@ -1,6 +1,6 @@
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
-type InputCallback = (dir: Direction) => void;
+type InputCallback  = (dir: Direction) => void;
 type ActionCallback = () => void;
 
 const DIR_KEYS: Record<string, Direction> = {
@@ -10,10 +10,11 @@ const DIR_KEYS: Record<string, Direction> = {
 };
 
 export class InputHandler {
-  private moveCallback: InputCallback | null = null;
+  private moveCallback:   InputCallback  | null = null;
   private actionCallback: ActionCallback | null = null;
+  private anyKeyCallback: ActionCallback | null = null;
   private lastMoveTime = 0;
-  private moveDelay = 120; // ms between moves
+  private moveDelay    = 120;
 
   constructor() {
     window.addEventListener('keydown', this.handleKey.bind(this));
@@ -21,6 +22,7 @@ export class InputHandler {
 
   private handleKey(e: KeyboardEvent) {
     const dir = DIR_KEYS[e.key];
+
     if (dir && this.moveCallback) {
       const now = performance.now();
       if (now - this.lastMoveTime >= this.moveDelay) {
@@ -28,24 +30,27 @@ export class InputHandler {
         this.moveCallback(dir);
       }
       e.preventDefault();
+      // Any-key fires on direction keys too (for instant restart)
+      this.anyKeyCallback?.();
       return;
     }
 
     if ((e.key === 'Enter' || e.key === ' ') && this.actionCallback) {
       this.actionCallback();
       e.preventDefault();
+      this.anyKeyCallback?.();
+      return;
     }
+
+    // Any other key
+    this.anyKeyCallback?.();
   }
 
-  onMove(cb: InputCallback) {
-    this.moveCallback = cb;
-  }
+  onMove(cb: InputCallback) { this.moveCallback = cb; }
+  onAction(cb: ActionCallback) { this.actionCallback = cb; }
 
-  onAction(cb: ActionCallback) {
-    this.actionCallback = cb;
-  }
+  // Fires on any keypress — used for instant restart after death
+  onAnyKey(cb: ActionCallback | null) { this.anyKeyCallback = cb; }
 
-  clearMove() {
-    this.moveCallback = null;
-  }
+  clearMove() { this.moveCallback = null; }
 }
